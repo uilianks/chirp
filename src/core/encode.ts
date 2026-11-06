@@ -2,17 +2,36 @@
 import type { Stereo } from "./synth.ts";
 import { SR } from "./util.ts";
 
-export function wav(b: Stereo): Uint8Array {
-  const n = b.L.length, data = n * 4;
-  const out = new Uint8Array(44 + data), v = new DataView(out.buffer);
+export interface WavOptions {
+  /** Add a `smpl` chunk with one forward loop over the whole sound, so Godot, FMOD and samplers loop it. */
+  loop?: boolean;
+  /** One channel (L and R averaged) instead of two: half the size, for positional (3D / 2D-panned) sounds. */
+  mono?: boolean;
+}
+
+export function wav(b: Stereo, opts: WavOptions = {}): Uint8Array {
+  const n = b.L.length, ch = opts.mono ? 1 : 2, data = n * ch * 2;
+  const smpl = opts.loop ? 8 + 36 + 24 : 0;
+  const out = new Uint8Array(44 + data + smpl), v = new DataView(out.buffer);
   const str = (o: number, s: string) => { for (let i = 0; i < s.length; i++) out[o + i] = s.charCodeAt(i); };
-  str(0, "RIFF"); v.setUint32(4, 36 + data, true); str(8, "WAVE");
-  str(12, "fmt "); v.setUint32(16, 16, true); v.setUint16(20, 1, true); v.setUint16(22, 2, true);
-  v.setUint32(24, SR, true); v.setUint32(28, SR * 4, true); v.setUint16(32, 4, true); v.setUint16(34, 16, true);
+  const s16 = (o: number, x: number) => v.setInt16(o, Math.round(Math.max(-1, Math.min(1, x)) * 32767), true);
+  str(0, "RIFF"); v.setUint32(4, 36 + data + smpl, true); str(8, "WAVE");
+  str(12, "fmt "); v.setUint32(16, 16, true); v.setUint16(20, 1, true); v.setUint16(22, ch, true);
+  v.setUint32(24, SR, true); v.setUint32(28, SR * ch * 2, true); v.setUint16(32, ch * 2, true); v.setUint16(34, 16, true);
   str(36, "data"); v.setUint32(40, data, true);
   for (let i = 0; i < n; i++) {
-    v.setInt16(44 + i * 4, Math.round(Math.max(-1, Math.min(1, b.L[i])) * 32767), true);
-    v.setInt16(46 + i * 4, Math.round(Math.max(-1, Math.min(1, b.R[i])) * 32767), true);
+    if (ch === 1) s16(44 + i * 2, (b.L[i] + b.R[i]) / 2);
+    else { s16(44 + i * 4, b.L[i]); s16(46 + i * 4, b.R[i]); }
+  }
+  if (opts.loop) {
+    // smpl: sampler header (9 × u32) + one loop (6 × u32). Loop end is the last sample, inclusive.
+    const o = 44 + data;
+    str(o, "smpl"); v.setUint32(o + 4, 36 + 24, true);
+    v.setUint32(o + 16, Math.round(1e9 / SR), true);   // sample period in ns
+    v.setUint32(o + 20, 60, true);                      // MIDI unity note (middle C)
+    v.setUint32(o + 36, 1, true);                       // one sample loop
+    const l = o + 44;                                   // cue id 0, type 0 (forward), start 0
+    v.setUint32(l + 12, Math.max(0, n - 1), true);
   }
   return out;
 }

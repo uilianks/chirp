@@ -8,9 +8,11 @@ import { serve } from "./server.ts";
 
 const USAGE = `chirp — game sound effects and music as code
 
-  chirp build <sounds.cx.js> [--out DIR] [--only a,b] [--ogg] [--no-preview]
+  chirp build <sounds.cx.js> [--out DIR] [--only a,b] [--ogg] [--mono] [--no-preview]
       Write WAV per sound (out/sfx, out/music), audio-sprite banks + JSON, and previews
       (out/_preview: waveform + spectrogram). --ogg also writes .ogg (needs ffmpeg).
+      Looping sounds and songs carry a WAV smpl loop (Godot imports them looping).
+      --mono writes one channel (L+R averaged), for positional sounds.
   chirp info  <sounds.cx.js> <name> [--layer N]
       Print length, levels, clipping and the pitch over time: read a sound without hearing it.
   chirp serve <sounds.cx.js> [--port 4330] [--out DIR | --no-out]
@@ -27,6 +29,7 @@ interface Args {
   out?: string | false;
   only?: string[];
   ogg?: boolean;
+  mono?: boolean;
   preview?: boolean;
   port?: number;
   layer?: number;
@@ -45,6 +48,7 @@ function parse(argv: string[]): Args {
     else if (v === "--no-out") a.out = false;
     else if (v === "--only") a.only = val().split(",").map((s) => s.trim()).filter(Boolean);
     else if (v === "--ogg") a.ogg = true;
+    else if (v === "--mono") a.mono = true;
     else if (v === "--no-preview") a.preview = false;
     else if (v === "--port") a.port = Number(val());
     else if (v === "--layer") a.layer = Number(val());
@@ -69,7 +73,7 @@ export async function main(argv: string[]): Promise<number> {
   try {
     switch (a.cmd) {
       case "build": {
-        const r = writeOutputs(loadProject(file), outDir, { only: a.only, ogg: a.ogg, preview: a.preview });
+        const r = writeOutputs(loadProject(file), outDir, { only: a.only, ogg: a.ogg, mono: a.mono, preview: a.preview });
         for (const l of r.lines) console.log(l);
         for (const e of r.errors) console.error("error: " + e.message);
         console.log(`-> ${outDir}${r.errors.length ? ` (${r.errors.length} error${r.errors.length > 1 ? "s" : ""})` : ""}`);

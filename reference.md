@@ -109,14 +109,14 @@ song("verse", { bpm: 96, bars: 4 }, track("pad", prog.join(" | ")), track("bass"
 
 ## Output and commands
 
-`chirp build file.cx.js [--out DIR] [--only a,b] [--ogg] [--no-preview]`
+`chirp build file.cx.js [--out DIR] [--only a,b] [--ogg] [--mono] [--no-preview]`
 
 | Path | Content |
 |---|---|
-| `out/sfx/<name>.wav` / `out/music/<name>.wav` | 16-bit 44.1 kHz stereo. `--ogg` adds Vorbis `.ogg` (needs ffmpeg). |
+| `out/sfx/<name>.wav` / `out/music/<name>.wav` | 16-bit 44.1 kHz stereo (`--mono`: one channel, L and R averaged, for positional sounds). Looping sounds (songs, `loop: true` sfx) carry a RIFF `smpl` chunk with one forward loop over the whole file, so Godot (import loop mode "Detect from WAV", the default), FMOD and samplers loop them without setup. `--ogg` adds Vorbis `.ogg` (needs ffmpeg; set Loop in Godot's import dock, OGG has no loop points). |
 | `out/music/<name>.mid` | Every song as a standard MIDI file: one track per `track()`, tempo, notes with accents as velocity, the built-in drums as General MIDI percussion on channel 10, a GM program per wave (square / saw / triangle / sine leads, FM as electric piano). Open it in a DAW to arrange the composition with real instruments. |
 | `out/<bank>.wav` + `.json` | Audio sprite: `{ src, sprite: { name: [startMs, durMs] \| [startMs, durMs, true] } }` (Howler.js format). |
-| `out/_preview/<name>.png` | Waveform + log-frequency spectrogram with time and Hz axes. |
+| `out/_preview/<name>.png` | Waveform + log-frequency spectrogram with time and Hz axes. The folder holds a `.gdignore`, so a build inside a Godot project does not import the previews. |
 
 `chirp info file.cx.js <name> [--layer N]` prints levels, clipping, brightness and the pitch over time.
 `chirp serve file.cx.js [--port 4330] [--no-out]` runs the live player. Its **annotate** mode (`a`)

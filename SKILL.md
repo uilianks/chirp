@@ -75,7 +75,8 @@ bank("game_sfx", ["coin*", "jump", "explosion"])
   note, chord `C4+E4+G4`, `x` hit, `.` rest, `-` hold, `!` accent, `|` bar (ignored). Patterns repeat to
   the song length; build long arrangements with plain JS string joins.
 - **Loops**: songs loop by default; `sfx(..., { dur, loop: true })` for ambience. Tails wrap onto
-  the start, so the seam is inaudible. Non-loops trim their silent tail.
+  the start, so the seam is inaudible. Non-loops trim their silent tail. Looping WAVs carry a `smpl`
+  loop, so Godot imports them looping; `--mono` writes one channel for positional sounds.
 - **Game output**: `out/sfx/*.wav`, `out/music/*.wav`, `bank()` → one WAV + `{ src, sprite: { name: [ms, ms] } }`
   JSON for Howler.js / Phaser audio sprites. Songs also write `out/music/*.mid` (tracks, drums on
   channel 10) for a DAW.

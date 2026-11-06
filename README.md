@@ -103,6 +103,73 @@ sfx coin: 0.4s  peak -6.8 dBFS  rms -16.79 dBFS  brightness 5196 Hz
 pitch: B5 (988Hz -16dB) @0s → E6 (1318Hz -15dB) @0.05s
 ```
 
+## Examples
+
+Built by `npm run examples` from the files in [`examples/`](examples); each picture is the build's
+waveform + spectrogram preview, and links to the OGG it produced.
+
+**Chip sound effects** ([`examples/basics.cx.js`](examples/basics.cx.js)): a coin from two square
+blips, and an explosion from filtered brown noise and a sub drop, crushed and driven.
+
+```js
+sfx("coin", { vol: 0.5 },
+  tone({ wave: "square", freq: "B5", dur: 0.06, env: [0.001, 0.02, 0.6, 0.02], duty: 0.25 }),
+  at(0.06, tone({ wave: "square", freq: "E6", dur: 0.2, env: [0.001, 0.05, 0.5, 0.18], duty: 0.25 })))
+
+sfx("explosion", { vol: 0.8, fx: [crush({ bits: 8, rate: 16000 }), drive({ amount: 1.6 })] },
+  noise({ color: "brown", dur: 0.5, env: [0.002, 0.2, 0.5, 0.6], filter: { type: "lp", from: 4000, to: 150 } }),
+  tone({ wave: "sine", freq: 110, to: 35, dur: 0.4, env: [0.001, 0.2, 0.4, 0.3], vol: 0.9 }))
+```
+
+| coin ([OGG](docs/examples/coin.ogg)) | explosion ([OGG](docs/examples/explosion.ogg)) |
+|---|---|
+| [![coin](docs/examples/coin.png)](docs/examples/coin.ogg) | [![explosion](docs/examples/explosion.png)](docs/examples/explosion.ogg) |
+
+**A chiptune loop** (same file): tracker patterns for lead, bass and the built-in drums.
+
+```js
+inst("lead", { wave: "square", duty: 0.25, env: [0.005, 0.08, 0.5, 0.08], vol: 0.25, vibrato: { rate: 6, depth: 0.15, delay: 0.1 } })
+inst("bass", { wave: "triangle", env: [0.003, 0.05, 0.8, 0.04], vol: 0.5 })
+song("loop", { bpm: 128, vol: 0.55, fx: [reverb({ size: 0.3, mix: 0.12 })] },
+  track("lead", "E5 . G5 . A5 - - . | B5 . A5 . G5 - E5 . | D5 . E5 . G5 - - . | E5 - - - . . . ."),
+  track("bass", "A2 . A3 . A2 . A3 . | F2 . F3 . F2 . F3 . | G2 . G3 . G2 . G3 . | E2 . E3 . E2 . E3 ."),
+  track("kick", "x . . . x . . . | x . . . x . . ."),
+  track("snare", ". . . . x . . . | . . . . x . . x"),
+  track("hat", ". . x . . . x . | . . x . . . x x"))
+```
+
+[![loop](docs/examples/loop.png)](docs/examples/loop.ogg)
+
+**Ambience loops for a level** ([`examples/ambience.cx.js`](examples/ambience.cx.js)): a cave
+(breathing wind, a sub rumble, drips placed by a seeded random) and a torch to place in the level
+with `--mono`. Both loop seamlessly, and their WAVs carry a `smpl` loop, so Godot imports them looping.
+
+```js
+sfx("cave", { dur: 8, loop: true, vol: 0.8, fx: [reverb({ size: 0.85, damp: 0.5, mix: 0.35 }), limiter()] },
+  noise({ color: "pink", dur: 8, env: [0, 0, 1, 0], vol: 0.18, tremolo: { rate: 0.25, depth: 0.6 }, filter: { type: "bp", cutoff: 420, q: 0.7 } }),
+  noise({ color: "brown", dur: 8, env: [0, 0, 1, 0], vol: 0.35, filter: { type: "lp", cutoff: 90 } }),
+  Array.from({ length: 9 }, () => at(rnd() * 7.8,
+    tone({ wave: "sine", freq: 900 + rnd() * 900, to: 2400 + rnd() * 600, slide: 0.03, dur: 0.03, env: [0.001, 0.04, 0, 0.05], vol: 0.35, pan: rnd() * 1.6 - 0.8 }))))
+```
+
+| cave ([OGG](docs/examples/cave.ogg)) | torch ([OGG](docs/examples/torch.ogg)) |
+|---|---|
+| [![cave](docs/examples/cave.png)](docs/examples/cave.ogg) | [![torch](docs/examples/torch.png)](docs/examples/torch.ogg) |
+
+**A theme with real harmony** ([`examples/theme.cx.js`](examples/theme.cx.js)): chords by name, a
+melody indexed from a D dorian scale, an FM electric piano with chorus, swing, and a limiter.
+
+```js
+const prog = ["Dm9", "G7", "Cmaj7", "Am7"]
+const S = scale("D", "dorian", 5)
+inst("keys", { wave: "fm", fm: { ratio: 1, index: 2, decay: 0.35 }, env: [0.004, 0.4, 0.35, 0.3], vol: 0.18 })
+const keys = prog.map((c) => chord(c, 3) + " -".repeat(7) + " " + chord(c, 3) + " -".repeat(7)).join(" | ")
+song("theme", { bpm: 96, swing: 0.12, vol: 0.8, fx: [chorus({ mix: 0.35 }), reverb({ size: 0.5, mix: 0.18 }), limiter()] },
+  track("keys", keys), track("bass", bass), track("lead", lead), /* + drums */)
+```
+
+[![theme](docs/examples/theme.png)](docs/examples/theme.ogg)
+
 ## Features
 
 - **Voices:** band-limited square (with duty), saw, triangle, sine, two-operator FM (bells, electric
@@ -115,7 +182,8 @@ pitch: B5 (988Hz -16dB) @0s → E6 (1318Hz -15dB) @0.05s
   with chords, holds, accents and swing, `chord("Am7")` / `scale("D", "dorian")` helpers for harmony.
   Songs loop seamlessly by default and also export as MIDI for a DAW.
 - **Reuse:** variants (`base` + `pitch`), `play()` to layer sounds, `at()` for timing, JS for everything else.
-- **Game output:** WAV, OGG (`--ogg`, via ffmpeg), audio-sprite banks + Howler JSON. Silent tails are
+- **Game output:** WAV (looping sounds carry a `smpl` loop that Godot imports as looping; `--mono`
+  for positional sounds), OGG (`--ogg`, via ffmpeg), audio-sprite banks + Howler JSON. Silent tails are
   trimmed and loop tails wrap onto the start.
 - **Agent ears:** spectrogram previews, `chirp info` pitch traces, clipping warnings, located errors.
 - **Live player:** rebuilds on save, auto-plays the edited sound, loops, solos layers.
@@ -125,11 +193,12 @@ Agent workflow: [SKILL.md](SKILL.md) · Full API: [reference.md](reference.md)
 ## Use as a Claude Code skill
 
 ```bash
-git clone https://github.com/uilianks/chirp ~/.claude/skills/chirp-game-audio
-cd ~/.claude/skills/chirp-game-audio && npm install
+git clone https://github.com/uilianks/chirp && cd chirp && npm install
+ln -s "$PWD" ~/.claude/skills/chirp-game-audio      # a link, so the skill is always this checkout
 ```
 
-Requires Node ≥ 22.18. `npm run check` typechecks and runs the tests.
+Requires Node ≥ 22.18. `npm run check` typechecks, runs the tests and builds every example
+(`npm run examples`, which also refreshes the README media in `docs/examples/`; needs ffmpeg).
 
 ## License
 

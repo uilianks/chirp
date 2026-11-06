@@ -114,3 +114,32 @@ song("s", { bpm: 150, bars: 1 }, track("lead", "C4 - E4 . G4! . . ."), at(0.4, t
   assert.ok(kickIdx > 0, "kick is GM note 36");
   assert.ok(b.indexOf(Buffer.from([0x90, 67, 120])) > 0, "the accented G4 is louder");
 });
+
+test("looping sounds carry a smpl loop over the whole sound; --mono writes one channel", () => {
+  const p = loadSource(`sfx("hum", { dur: 0.5, loop: true }, tone({ wave: "sine", freq: 220, dur: 0.6 }))
+sfx("blip", tone({ wave: "square", freq: 880, dur: 0.05 }))
+song("t", { bpm: 120, steps: 4 }, track("kick", "x . x ."))`);
+  const dir = mkdtempSync(join(tmpdir(), "chirp-loop-"));
+  const r = writeOutputs(p, dir, { preview: false });
+  assert.deepEqual(r.errors, []);
+  const smplOf = (f: string) => {
+    const b = readFileSync(join(dir, f)), v = new DataView(b.buffer, b.byteOffset, b.byteLength);
+    for (let o = 12; o + 8 <= b.length; o += 8 + v.getUint32(o + 4, true))
+      if (b.toString("latin1", o, o + 4) === "smpl") return { loops: v.getUint32(o + 36, true), start: v.getUint32(o + 52, true), end: v.getUint32(o + 56, true), frames: decodeWav(b).L.length };
+    return undefined;
+  };
+  for (const f of ["sfx/hum.wav", "music/t.wav"]) {
+    const s = smplOf(f)!;
+    assert.ok(s, `${f} has smpl`);
+    assert.equal(s.loops, 1);
+    assert.equal(s.start, 0);
+    assert.equal(s.end, s.frames - 1);
+  }
+  assert.equal(smplOf("sfx/blip.wav"), undefined, "one-shots have no loop");
+  assert.equal(readFileSync(join(dir, "sfx/hum.wav")).readUInt16LE(22), 2);
+  const m = mkdtempSync(join(tmpdir(), "chirp-mono-"));
+  writeOutputs(p, m, { preview: false, mono: true });
+  const mono = readFileSync(join(m, "sfx/hum.wav"));
+  assert.equal(mono.readUInt16LE(22), 1);
+  assert.equal(decodeWav(mono).L.length, p.render("hum").buf.L.length, "same length, half the bytes");
+});
