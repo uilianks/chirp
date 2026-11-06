@@ -204,3 +204,7 @@ Requires Node ≥ 22.18. `npm run check` typechecks, runs the tests and builds e
 
 [MIT](LICENSE). Portions adapted from [claude-pxl](https://github.com/crsolver/claude-pxl)
 (MIT, © crsolver), via vex.
+
+## Support
+
+If this tool helps you, you can support its development on [Ko-fi](https://ko-fi.com/uiliankidricki).
